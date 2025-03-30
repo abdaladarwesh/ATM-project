@@ -98,17 +98,38 @@ void transferMoney(User& sender) {
 
     int amount;
     cout << "Enter amount to transfer: ";
-    cin >> amount;
+    while (true) {
+        cin >> amount;
 
-    if (amount > sender.money) {
-        cout << "Insufficient balance!\n";
-        cout << "Current balance: " << sender.money << " EGP\n";
-        return;
+        if (amount > sender.money) {
+            cout << "Insufficient balance! Current balance: " << sender.money << " EGP\n";
+            cout << "Enter a new amount to transfer: ";
+        } else {
+            break;
+        }
     }
 
     if (!verifyPassword(sender.password)) {
         return;
     }
+    char choice;
+    while (true) {
+        cout << "You are transferring to " << receiver.first_name << endl;
+        cout << "Submit? (y, n): ";
+        cin >> choice;
+
+        if (choice == 'y' || choice == 'n') {
+            break;
+        } else {
+            cout << "Invalid input! Please enter 'y' or 'n'.\n";
+        }
+    }
+
+    if (choice == 'n') {
+        cout << "Transfer canceled.\n";
+        return;
+    }
+
 
     sender.money -= amount;
     receiver.money += amount;
@@ -137,7 +158,8 @@ void showProfile(const User& user) {
     cout << "Balance: " << user.money << " EGP\n";
 }
 
-void userOperations(User& user) {
+void userOperations(User& user) 
+{
     int operation;
     do {
         cout << "\nChoose your operation:\n";
@@ -158,7 +180,7 @@ void userOperations(User& user) {
             cout << "Deposit successful!\n";
             break;
         }
-        case 3: {
+        case 3:
             int withdraw;
             cout << "Enter the amount to withdraw: ";
             cin >> withdraw;
@@ -170,12 +192,21 @@ void userOperations(User& user) {
                 executeSQL("UPDATE users SET money = " + to_string(user.money) + " WHERE phone_num = '" + user.phone_num + "';");
                 cout << "Withdraw successful!\n";
                 cout << "Current balance: " << user.money << " EGP\n";
-            } else {
-                cout << "Insufficient balance!\n";
+            } 
+            else 
+            {
+                while (withdraw > user.money) {
+                    cout << "Insufficient balance!\n";
+                    cout << "Current balance: " << user.money << " EGP\n";
+                    cout << "Enter a new amount to withdraw: ";
+                    cin >> withdraw;
+                }
+                user.money -= withdraw;
+                executeSQL("UPDATE users SET money = " + to_string(user.money) + " WHERE phone_num = '" + user.phone_num + "';");
+                cout << "Withdraw successful!\n";
                 cout << "Current balance: " << user.money << " EGP\n";
+                break;
             }
-            break;
-        }
         case 4:
             transferMoney(user);
             break;
@@ -216,10 +247,12 @@ int main() {
             if (password == user.password) {
                 cout << "\nWelcome back, " << user.first_name << "!\n";
                 userOperations(user);
-            } else {
+            } 
+            else {
                 cout << "Incorrect password!\n";
-            }
-        } else {
+            } 
+        } 
+        else {
             cout << "New account detected. Enter details:\n";
             user.phone_num = phone;
             cout << "Enter first name: ";
