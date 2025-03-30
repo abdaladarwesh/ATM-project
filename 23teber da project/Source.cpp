@@ -102,6 +102,7 @@ void transferMoney(User& sender) {
 
     if (amount > sender.money) {
         cout << "Insufficient balance!\n";
+        cout << "Current balance: " << sender.money << " EGP\n";
         return;
     }
 
@@ -115,6 +116,8 @@ void transferMoney(User& sender) {
     executeSQL("UPDATE users SET money = " + to_string(sender.money) + " WHERE phone_num = '" + sender.phone_num + "';");
     executeSQL("UPDATE users SET money = " + to_string(receiver.money) + " WHERE phone_num = '" + receiver.phone_num + "';");
     cout << "Transfer successful!\n";
+    cout << "Current balance: " << sender.money << " EGP\n";
+
 }
 
 void changePassword(User& user) {
@@ -151,6 +154,7 @@ void userOperations(User& user) {
             cin >> deposit;
             user.money += deposit;
             executeSQL("UPDATE users SET money = " + to_string(user.money) + " WHERE phone_num = '" + user.phone_num + "';");
+            cout << "Cpdated balance: " << user.money << " EGP\n";
             cout << "Deposit successful!\n";
             break;
         }
@@ -165,8 +169,10 @@ void userOperations(User& user) {
                 user.money -= withdraw;
                 executeSQL("UPDATE users SET money = " + to_string(user.money) + " WHERE phone_num = '" + user.phone_num + "';");
                 cout << "Withdraw successful!\n";
+                cout << "Current balance: " << user.money << " EGP\n";
             } else {
                 cout << "Insufficient balance!\n";
+                cout << "Current balance: " << user.money << " EGP\n";
             }
             break;
         }
