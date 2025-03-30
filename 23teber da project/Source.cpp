@@ -2,103 +2,87 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <sqlite3.h>
 using namespace std;
 
-// تعريف هيكل بيانات المستخدم
+// Database initialization
+sqlite3* db;
+
+void executeSQL(const string& sql) {
+    char* errMsg = 0;
+    if (sqlite3_exec(db, sql.c_str(), 0, 0, &errMsg) != SQLITE_OK) {
+        cerr << "SQL Error: " << errMsg << endl;
+        sqlite3_free(errMsg);
+    }
+}
+
+void initializeDatabase() {
+    if (sqlite3_open("bank.db", &db)) {
+        cerr << "Can't open database: " << sqlite3_errmsg(db) << endl;
+        exit(1);
+    }
+    string sql = "CREATE TABLE IF NOT EXISTS users ("
+                 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                 "first_name TEXT,"
+                 "last_name TEXT,"
+                 "phone_num TEXT UNIQUE,"
+                 "money INTEGER,"
+                 "password TEXT);";
+    executeSQL(sql);
+}
+
 struct User {
+    int id;
     string first_name;
     string last_name;
-    long long id = 0;
     string phone_num;
     int money;
     string password;
 };
-vector<User> users; // قائمة المستخدمين الديناميكية
 
-// دالة لإدارة العمليات الخاصة بالمستخدم العادي
-void userOperations(User& user)
-{
+bool getUser(const string& phone, User& user) {
+    string sql = "SELECT * FROM users WHERE phone_num='" + phone + "';";
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            user.id = sqlite3_column_int(stmt, 0);
+            user.first_name = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+            user.last_name = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+            user.phone_num = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+            user.money = sqlite3_column_int(stmt, 4);
+            user.password = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5)));
+            sqlite3_finalize(stmt);
+            return true;
+        }
+    }
+    sqlite3_finalize(stmt);
+    return false;
+}
+
+void addUser(User& user) {
+    string sql = "INSERT INTO users (first_name, last_name, phone_num, money, password) VALUES ('" +
+                 user.first_name + "', '" + user.last_name + "', '" + user.phone_num + "', " + to_string(user.money) + ", '" + user.password + "');";
+    executeSQL(sql);
+}
+
+void userOperations(User& user) {
     int operation;
     do {
         cout << "\nChoose your operation:\n";
-        cout << "1- Check Balance\n";
-        cout << "2- Deposit\n";
-        cout << "3- Withdraw\n";
-        cout << "4- Transfer Money \n";
-        cout << "5- Change password \n";
-        cout << "6- Show profile \n";
-        cout << "7- Return to Main Menu\n";
-        cout << "8- Exit\n";
-        cout << "Enter your choice: ";
+        cout << "1- Check Balance\n2- Deposit\n3- Withdraw\n4- Exit\nEnter your choice: ";
         cin >> operation;
 
         switch (operation) {
         case 1:
-        {
-            bool con = true;
-            int numsOfTrying = 3;
-            while (con)
-            {
-                if (numsOfTrying != 0)
-                {
-                    string checkPassword;
-                    cout << "please enter your password : ";
-                    cin >> checkPassword;
-                    if (checkPassword == user.password)
-                    {
-                        cout << "Your current balance: " << user.money << " EGP\n";
-                        con = false;
-                    }
-                    else
-                    {
-                        cout << "worng password please try again\n";
-                        numsOfTrying--;
-                        cout << "worng password you have " << numsOfTrying << " attempts to enter the right password befor signing out please try again\n";
-                    }
-                }
-                else
-                {
-                    cout << "too Many attempts entering the wrong password , signing out.....\n";
-                    return;
-                }
-            }
-
+            cout << "Your current balance: " << user.money << " EGP\n";
             break;
-        }
         case 2: {
-            bool con = true;
-            int numsOfTrying = 3;
-            while (con)
-            {
-
-            if (numsOfTrying != 0)
-            {
-                string checkPassword;
-                cout << "please enter your password : ";
-                cin >> checkPassword;
-                if (checkPassword == user.password)
-                {
-                    int deposit;
-                    cout << "Enter the amount to deposit: ";
-                    cin >> deposit;
-                    user.money += deposit;
-                    cout << "Deposit successful! New balance: " << user.money << " EGP\n";
-                    con = false;
-                }
-                else
-                {
-                    cout << "worng password please try again\n";
-                    numsOfTrying--;
-                    cout << "worng password you have " << numsOfTrying << " attempts to enter the right password befor signing out please try again\n";
-                }
-            }
-            else
-            {
-                cout << "too Many attempts entering the wrong password , signing out.....\n";
-                return;
-            }
-            }
-
+            int deposit;
+            cout << "Enter the amount to deposit: ";
+            cin >> deposit;
+            user.money += deposit;
+            executeSQL("UPDATE users SET money = " + to_string(user.money) + " WHERE phone_num = '" + user.phone_num + "';");
+            cout << "Deposit successful!\n";
             break;
         }
         case 3: {
@@ -106,258 +90,56 @@ void userOperations(User& user)
             cout << "Enter the amount to withdraw: ";
             cin >> withdraw;
             if (withdraw <= user.money) {
-                bool con = true;
-                int numsOfTrying = 3;
-                while (con)
-                {
-                    if (numsOfTrying != 0)
-                    {
-                        string checkPassword;
-                        cout << "please enter your password : ";
-                        cin >> checkPassword;
-                        if (checkPassword == user.password)
-                        {
-                            user.money -= withdraw;
-                            cout << "Withdraw successful! New balance: " << user.money << " EGP\n";
-                            con = false;
-                        }
-                        else
-                        {
-                            cout << "worng password please try again\n";
-                            numsOfTrying--;
-                            cout << "worng password you have " << numsOfTrying << " attempts to enter the right password befor signing out please try again\n";
-                        }
-                    }
-                    else
-                    {
-                        cout << "too Many attempts entering the wrong password , signing out.....\n";
-                        return;
-                    }
-                }
-
-            }
-            else {
-                cout << "Insufficient balance! you want to withdraw " << withdraw << " EGP Current balance : " << user.money << " EGP\n";
+                user.money -= withdraw;
+                executeSQL("UPDATE users SET money = " + to_string(user.money) + " WHERE phone_num = '" + user.phone_num + "';");
+                cout << "Withdraw successful!\n";
+            } else {
+                cout << "Insufficient balance!\n";
             }
             break;
         }
-        case 4: {
-            string usernum;
-            cout << "Enter the number you want to transfer to : ";
-            cin >> usernum;
-            auto it = find_if(users.begin(), users.end(), [&](const User u) {return usernum == u.phone_num;});
-            if (it != users.end())
-            {
-
-                int amountTransfer;
-                cout << "enter the amount : ";
-                cin >> amountTransfer;
-                if (amountTransfer <= user.money)
-                {
-                    int numsOfTrynig = 3;
-                    bool cond = true;
-                    while (cond) {
-                        if (numsOfTrynig != 0) {
-
-                            string CheckingPassword;
-                            cout << "enter the password : ";
-                            cin >> CheckingPassword;
-                            if (CheckingPassword == user.password)
-                            {
-                                user.money -= amountTransfer;
-                                it->money += amountTransfer;
-                                cout << "transfer successful! your balance now is " << user.money << endl;
-                                cond = false;
-                            }
-                            else {
-                                cout << "wrong password please try again\n";
-                                numsOfTrynig--;
-                                cout << "worng password you have " << numsOfTrynig << " attempts to enter the right password befor signing out please try again\n";
-                            }
-                        }
-                        else
-                        {
-                            cout << "too Many attempts entering the wrong password , signing out.....\n";
-                            return;
-                        }
-                    }
-                }
-                else
-                {
-                    cout << "Insufficient balance ! you want to transfer " << amountTransfer << " EGP and your balance is " << user.money << " EGP" << endl;
-                    break;
-                }
-            }
-            else
-            {
-                cout << "non existing user please try again";
-            }
-            break;
-        }
-        case 5:
-        {
-            bool con = true;
-            int numsOfTrying = 3;
-            while (con)
-            {
-                if (numsOfTrying != 0)
-                {
-                    string checkPassword;
-                    cout << "Please enter your current password: ";
-                    cin >> checkPassword;
-                    if (checkPassword == user.password)
-                    {
-                        string newPassword;
-                        cout << "Enter your new password: ";
-                        cin >> newPassword;
-                        user.password = newPassword; // Update password
-                        cout << "Password changed successfully!\n";
-                        con = false;
-                        return userOperations(user);
-                    }
-                    else
-                    {
-                        cout << "Wrong password! Please try again.\n";
-                        numsOfTrying--;
-                        cout << "You have " << numsOfTrying << " attempts remaining before signing out.\n";
-                    }
-                }
-                else
-                {
-                    cout << "Too many incorrect attempts. Signing out...\n";
-                    return;
-                }
-            }
-            break;
-        }
-        case 6:
-        {
-            bool con = true;
-            int numsOfTrying = 3;
-            while (con)
-            {
-                if (numsOfTrying != 0)
-                {
-                    string checkPassword;
-                    cout << "please enter your password : ";
-                    cin >> checkPassword;
-                    if (checkPassword == user.password)
-                    {
-                        while (true)
-                        {
-
-                        int choice;
-                        cout << "=========== " << user.first_name << " " << user.last_name << " profile ===========\n";
-                        cout << "The full name " << user.first_name << " " << user.last_name << endl;
-                        cout << "The phone number " << user.phone_num << endl;
-                        cout << "The balance " << user.money << endl;
-                        cout << "The password " << user.password << endl;
-                        cout << "1- Return to main menu \n";
-                        cout << "enter your choice : ";
-                        cin >> choice;
-                        if (choice == 1)
-                        {
-                            return userOperations(user);
-                        }
-                        else {
-                            cout << "incorrect operation!\n";
-                        }
-                    }
-                        con = false;
-                        }
-                    else
-                    {
-                        cout << "worng password please try again\n";
-                        numsOfTrying--;
-                        cout << "worng password you have " << numsOfTrying << " attempts to enter the right password befor signing out please try again\n";
-                    }
-                }
-                else
-                {
-                    cout << "too Many attempts entering the wrong password , signing out.....\n";
-                    return;
-                }
-            }
-
-        }
-
-
-        case 7:
-            cout << "Returning to Main Menu...\n";
-            return; // الرجوع إلى القائمة الرئيسية
-        case 8:
+        case 4:
             cout << "Exiting... Goodbye!\n";
-            exit(0); // إنهاء البرنامج بالكامل
+            exit(0);
         default:
             cout << "Invalid choice! Try again.\n";
         }
-    } while (operation != 5);
+    } while (operation != 4);
 }
 
 int main() {
+    initializeDatabase();
     while (true) {
-        string num_guest;
-        bool validPhoneNumber = false;
-        while (!validPhoneNumber) {
-            cout << "Enter your Phone Number (must be 11 digits): ";
-            cin >> num_guest;
-            if (num_guest.length() == 11) {
-                validPhoneNumber = true;
-            }
-            else {
-                if (num_guest.length() > 11)
-                {
-                    cout << "Invalid phone number! The number is more than 11 digits Please enter exactly 11 digits.\n";
-                }
-                else if (num_guest.length() < 11)
-                {
-                    cout << "Invalid phone number! The number is less than 11 digits Please enter exactly 11 digits.\n";
-                }
-            }
-        }
+        string phone;
+        cout << "Enter your Phone Number: ";
+        cin >> phone;
 
-        cout << "Is this a new account or an existing account? (1- New, 2- Existing): ";
-        int accountType;
-        cin >> accountType;
-
-        if (accountType == 2) {
+        User user;
+        if (getUser(phone, user)) {
             string password;
             cout << "Enter your password: ";
             cin >> password;
-
-            // البحث عن المستخدم
-            auto it = find_if(users.begin(), users.end(), [&](const User& user) {
-                return user.phone_num == num_guest && user.password == password;
-                });
-
-            if (it != users.end()) {
-                // تم العثور على المستخدم
-                cout << "\nWelcome back, " << it->first_name << "!\n";
-                userOperations(*it);
+            if (password == user.password) {
+                cout << "\nWelcome back, " << user.first_name << "!\n";
+                userOperations(user);
+            } else {
+                cout << "Incorrect password!\n";
             }
-            else {
-                cout << "No matching account found! Please check your credentials.\n";
-            }
-        }
-        else if (accountType == 1) {
-            // إنشاء حساب جديد
-            User newUser;
-            newUser.phone_num = num_guest;
-            cout << "Enter a password for your new account: ";
-            cin >> newUser.password;
-            newUser.money = 0; // الرصيد الافتراضي
-            cout << "Enter your first name: ";
-            cin >> newUser.first_name;
-            cout << "Enter your last name: ";
-            cin >> newUser.last_name;
-            users.push_back(newUser);
-            cout << "\nWelcome, " << newUser.first_name + " " + newUser.last_name << "! Your account has been created.\n";
-            userOperations(newUser);
-        }
-        else {
-            cout << "Invalid choice! Returning to the main menu.\n";
+        } else {
+            cout << "New account detected. Enter details:\n";
+            user.phone_num = phone;
+            cout << "Enter first name: ";
+            cin >> user.first_name;
+            cout << "Enter last name: ";
+            cin >> user.last_name;
+            cout << "Enter password: ";
+            cin >> user.password;
+            user.money = 0;
+            addUser(user);
+            cout << "Account created successfully!\n";
+            userOperations(user);
         }
     }
-
+    sqlite3_close(db);
     return 0;
 }
