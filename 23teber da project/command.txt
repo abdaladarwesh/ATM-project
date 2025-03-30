@@ -1,3 +1,9 @@
+cl Source.cpp sqlite3.c /I. /EHsc /std:c++17 /FeSource.exe
+
+source.exe
+
+cd P:\coding\23teber da project\23teber da project
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -65,22 +71,6 @@ void addUser(User& user) {
     executeSQL(sql);
 }
 
-bool verifyPassword(const string& storedPassword) {
-    int attempts = 3;
-    while (attempts > 0) {
-        string inputPassword;
-        cout << "Enter your password: ";
-        cin >> inputPassword;
-        if (inputPassword == storedPassword) {
-            return true;
-        }
-        attempts--;
-        cout << "Incorrect password! You have " << attempts << " attempts remaining.\n";
-    }
-    cout << "Too many incorrect attempts. Returning to main menu.\n";
-    return false;
-}
-
 void transferMoney(User& sender) {
     string receiverPhone;
     cout << "Enter recipient phone number (must be 11 digits): ";
@@ -105,10 +95,6 @@ void transferMoney(User& sender) {
         return;
     }
 
-    if (!verifyPassword(sender.password)) {
-        return;
-    }
-
     sender.money -= amount;
     receiver.money += amount;
 
@@ -117,28 +103,11 @@ void transferMoney(User& sender) {
     cout << "Transfer successful!\n";
 }
 
-void changePassword(User& user) {
-    if (!verifyPassword(user.password)) {
-        return;
-    }
-    cout << "Enter new password: ";
-    cin >> user.password;
-    executeSQL("UPDATE users SET password = '" + user.password + "' WHERE phone_num = '" + user.phone_num + "';");
-    cout << "Password changed successfully!\n";
-}
-
-void showProfile(const User& user) {
-    cout << "\n=========== User Profile ===========\n";
-    cout << "Name: " << user.first_name << " " << user.last_name << "\n";
-    cout << "Phone: " << user.phone_num << "\n";
-    cout << "Balance: " << user.money << " EGP\n";
-}
-
 void userOperations(User& user) {
     int operation;
     do {
         cout << "\nChoose your operation:\n";
-        cout << "1- Check Balance\n2- Deposit\n3- Withdraw\n4- Transfer Money\n5- Change Password\n6- Show Profile\n7- Return to Main Menu\n8- Exit\nEnter your choice: ";
+        cout << "1- Check Balance\n2- Deposit\n3- Withdraw\n4- Transfer Money\n5- Exit\nEnter your choice: ";
         cin >> operation;
 
         switch (operation) {
@@ -159,9 +128,6 @@ void userOperations(User& user) {
             cout << "Enter the amount to withdraw: ";
             cin >> withdraw;
             if (withdraw <= user.money) {
-                if (!verifyPassword(user.password)) {
-                    return;
-                }
                 user.money -= withdraw;
                 executeSQL("UPDATE users SET money = " + to_string(user.money) + " WHERE phone_num = '" + user.phone_num + "';");
                 cout << "Withdraw successful!\n";
@@ -174,21 +140,12 @@ void userOperations(User& user) {
             transferMoney(user);
             break;
         case 5:
-            changePassword(user);
-            break;
-        case 6:
-            showProfile(user);
-            break;
-        case 7:
-            cout << "Returning to Main Menu...\n";
-            return;
-        case 8:
             cout << "Exiting... Goodbye!\n";
             exit(0);
         default:
             cout << "Invalid choice! Try again.\n";
         }
-    } while (operation != 7);
+    } while (operation != 5);
 }
 
 int main() {
